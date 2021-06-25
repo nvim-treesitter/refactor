@@ -9,13 +9,19 @@ local cmd = api.nvim_command
 local M = {}
 
 local usage_namespace = api.nvim_create_namespace('nvim-treesitter-usages')
+local last_node = nil
 
 function M.highlight_usages(bufnr)
-  M.clear_usage_highlights(bufnr)
-
   local node_at_point = ts_utils.get_node_at_cursor()
-  local references = locals.get_references(bufnr)
+  -- Don't calculate usages again if we are on the same node.
+  if node_at_point == last_node and M.has_highlights(bufnr) then
+    return
+  else
+    last_node = node_at_point
+  end
 
+  M.clear_usage_highlights(bufnr)
+  local references = locals.get_references(bufnr)
   if not node_at_point or not vim.tbl_contains(references, node_at_point) then
     return
   end
@@ -34,6 +40,10 @@ function M.highlight_usages(bufnr)
   end
 end
 
+function M.has_highlights(bufnr)
+  return #api.nvim_buf_get_extmarks(bufnr, usage_namespace, 0, -1, {}) > 0
+end
+
 function M.clear_usage_highlights(bufnr)
   api.nvim_buf_clear_namespace(bufnr, usage_namespace, 0, -1)
 end
@@ -43,7 +53,6 @@ function M.attach(bufnr)
   cmd 'au!'
   -- luacheck: push ignore 631
   cmd(string.format([[autocmd CursorHold <buffer=%d> lua require'nvim-treesitter-refactor.highlight_definitions'.highlight_usages(%d)]], bufnr, bufnr))
-  cmd(string.format([[autocmd CursorMoved <buffer=%d> lua require'nvim-treesitter-refactor.highlight_definitions'.clear_usage_highlights(%d)]], bufnr, bufnr))
   cmd(string.format([[autocmd InsertEnter <buffer=%d> lua require'nvim-treesitter-refactor.highlight_definitions'.clear_usage_highlights(%d)]], bufnr, bufnr))
   -- luacheck: pop
   cmd 'augroup END'
@@ -52,7 +61,6 @@ end
 function M.detach(bufnr)
   M.clear_usage_highlights(bufnr)
   cmd(string.format('autocmd! NvimTreesitterUsages_%d CursorHold', bufnr))
-  cmd(string.format('autocmd! NvimTreesitterUsages_%d CursorMoved', bufnr))
   cmd(string.format('autocmd! NvimTreesitterUsages_%d InsertEnter', bufnr))
 end
 
