@@ -25,7 +25,9 @@ Highlights definition and usages of the current symbol under the cursor.
 lua <<EOF
 require'nvim-treesitter.configs'.setup {
   refactor = {
-    highlight_definitions = { enable = true },
+    highlight_definitions = {
+      clear_on_cursor_move = true,  -- set to false if you have an `updatetime` of ~100.
+    },
   },
 }
 EOF
